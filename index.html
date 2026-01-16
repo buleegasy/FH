@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lubricate & East Sun - Love Story</title>
+    <style>
+        :root {
+            --primary: #ff1f5a;
+            --secondary: #ffce00;
+            --bg: #000000;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: var(--bg);
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+
+        canvas { position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* 启动遮罩 */
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: opacity 0.8s;
+        }
+        #overlay h1 { color: white; letter-spacing: 8px; font-weight: 200; margin: 0; }
+        #overlay p { color: var(--primary); font-size: 0.8rem; margin-top: 25px; animation: blink 2s infinite; letter-spacing: 2px; }
+
+        .ui-layer {
+            position: relative; z-index: 10; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; align-items: center;
+        }
+
+        #lyrics-container {
+            margin-top: 68vh; height: 120px; text-align: center;
+            transition: transform 0.8s cubic-bezier(0.2, 1, 0.2, 1);
+        }
+
+        .lyric-line {
+            height: 40px; line-height: 40px; font-size: 1.3rem;
+            color: rgba(255,255,255,0.15); transition: all 0.6s;
+            filter: blur(1.5px); transform: scale(0.85);
+        }
+
+        .lyric-line.active {
+            color: #fff; filter: blur(0); transform: scale(1.1);
+            text-shadow: 0 0 15px var(--primary), 0 0 30px var(--secondary);
+            opacity: 1;
+        }
+
+        .progress-wrapper {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 5px;
+            background: rgba(255,255,255,0.05); z-index: 20; pointer-events: auto; cursor: pointer;
+        }
+        #progress-bar {
+            width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary));
+            box-shadow: 0 0 20px var(--primary);
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>PUBLIC BETA</h1>
+        <p>LUBRICATE & EAST SUN: TAP TO ENTER</p>
+    </div>
+
+    <canvas id="mainCanvas"></canvas>
+
+    <div class="ui-layer">
+        <div id="lyrics-container"></div>
+    </div>
+
+    <div class="progress-wrapper" id="progress-root">
+        <div id="progress-bar"></div>
+    </div>
+
+    <audio id="music" src="Love Story.mp3"></audio>
+
+    <script>
+        const audio = document.getElementById('music');
+        const overlay = document.getElementById('overlay');
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const lyricsWrap = document.getElementById('lyrics-container');
+        const bar = document.getElementById('progress-bar');
+
+        // --- 深度同步时间轴 ---
+        const timeline = [
+            { t: 0, text: "Lubricate & East Sun", m: "normal" },
+            { t: 12, text: "Lubricate stands in the soft glow,", m: "oil" },
+            { t: 20, text: "Frank calls, 'Don't move too slow.'", m: "normal" },
+            { t: 25, text: "East Sun smiles through broken tunes,", m: "sun" },
+            { t: 31, text: "Promises we made too soon.", m: "normal" },
+            { t: 37, text: "Frank and East Sun, staying young,", m: "sun" },
+            { t: 43, text: "Every truth still on our tongue.", m: "normal" },
+            { t: 51, text: "Oh, Lubricate and East Sun run,", m: "sun" },
+            { t: 58, text: "Through the dark into the sun.", m: "sun" },
+            { t: 63, text: "Frank and East Sun, night is done,", m: "sun" },
+            { t: 67, text: "I choose you — East Sun.", m: "sun" },
+            { t: 83, text: "Lubricate fears he’s hard to keep,", m: "oil" },
+            { t: 92, text: "East Sun says, 'Love’s not that deep.'", m: "sun" },
+            { t: 99, text: "Frank and East Sun, faded signs,", m: "normal" },
+            { t: 105, text: "Your hand fits right inside mine.", m: "normal" },
+            { t: 110, text: "Oil and light, Frank never planned,", m: "oil" },
+            { t: 115, text: "East Sun smiles, they understand.", m: "sun" },
+            { t: 122, text: "If the world comes all undone,", m: "normal" },
+            { t: 127, text: "Stay with me till morning comes.", m: "sun" },
+            { t: 133, text: "Oh, Lubricate and East Sun run,", m: "sun" },
+            { t: 141, text: "Frank and East Sun toward the sun.", m: "sun" },
+            { t: 146, text: "When the truth is finally done,", m: "normal" },
+            { t: 152, text: "I choose you — East Sun.", m: "sun" },
+            { t: 158, text: "Frank and East Sun, one love begun.", m: "sun" }
+        ];
+
+        let particles = [];
+        const count = 3000; // 增加粒子密度
+        let heartScale = 1;
+        let mood = "normal";
+
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
+        window.onresize();
+
+        function getHeartPos(t) {
+            const x = 16 * Math.pow(Math.sin(t), 3);
+            const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+            return { x: x * 18, y: y * 18 };
+        }
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.angle = Math.random() * Math.PI * 2; // 初始相位
+                this.flowSpeed = Math.random() * 0.02 + 0.01; // 流动速度
+                this.x = (Math.random() - 0.5) * canvas.width;
+                this.y = (Math.random() - 0.5) * canvas.height;
+                this.vx = 0; this.vy = 0;
+                this.size = Math.random() * 1.5 + 0.5;
+                this.color = Math.random() > 0.4 ? '#ff1f5a' : '#ffce00';
+                this.disturb = Math.random() * 20; // 增加路径扰动
+            }
+            update() {
+                // 核心改动：让 angle 随时间流逝，实现“流动”
+                this.angle += mood === "sun" ? this.flowSpeed * 2.5 : this.flowSpeed;
+                
+                const pos = getHeartPos(this.angle);
+                const targetX = pos.x * heartScale;
+                const targetY = pos.y * heartScale;
+
+                let friction = mood === "oil" ? 0.82 : 0.92; // Oil模式更粘稠
+                let ease = mood === "sun" ? 0.08 : 0.05;
+
+                this.vx += (targetX - this.x) * ease;
+                this.vy += (targetY - this.y) * ease;
+                this.vx *= friction;
+                this.vy *= friction;
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Sun 模式下粒子变大变亮
+                if(mood === "sun") {
+                    this.size = Math.random() * 3 + 1;
+                } else {
+                    this.size = Math.random() * 1.5 + 0.5;
+                }
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = mood === "sun" ? 10 : 0;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x + canvas.width/2, this.y + canvas.height/2 - 50, this.size, 0, 7);
+                ctx.fill();
+            }
+        }
+
+        // 初始化
+        for(let i=0; i<count; i++) particles.push(new Particle());
+        timeline.forEach((item, i) => {
+            const el = document.createElement('div');
+            el.className = 'lyric-line';
+            el.id = `l-${i}`;
+            el.innerText = item.text;
+            lyricsWrap.appendChild(el);
+        });
+
+        overlay.onclick = () => {
+            overlay.style.opacity = 0;
+            setTimeout(() => overlay.remove(), 800);
+            audio.play();
+        };
+
+        document.getElementById('progress-root').onclick = (e) => {
+            const percent = e.offsetX / window.innerWidth;
+            audio.currentTime = percent * audio.duration;
+        };
+
+        function animate() {
+            // 背景清理（Oil 模式下轨迹更长）
+            ctx.fillStyle = mood === "oil" ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.18)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const cur = audio.currentTime;
+            bar.style.width = `${(cur / audio.duration) * 100}%`;
+
+            const idx = timeline.findIndex((l, i) => cur >= l.t && (!timeline[i+1] || cur < timeline[i+1].t));
+            if(idx !== -1) {
+                document.querySelectorAll('.lyric-line').forEach(l => l.classList.remove('active'));
+                const active = document.getElementById(`l-${idx}`);
+                if(active) active.classList.add('active');
+                lyricsWrap.style.transform = `translateY(-${idx * 40}px)`;
+                
+                mood = timeline[idx].m;
+                // 心跳脉冲
+                heartScale = 1 + Math.sin(Date.now() * 0.006) * 0.12;
+                if(mood === "sun") heartScale += 0.25;
+            }
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>
