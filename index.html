@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Lubricate & East Sun - Art Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --p: #ff2d55; --s: #ffcc00; --bg: #050505; }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background: var(--bg);
+            font-family: 'Cinzel', serif; /* 艺术字体 */
+        }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        
+        /* 启动屏 */
+        #overlay {
+            position: fixed; inset: 0; background: #000; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 1.2s ease-out; cursor: pointer;
+        }
+        #overlay h1 { 
+            color: #fff; letter-spacing: 0.3em; font-weight: 400; font-size: 1.2rem; 
+            border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;
+        }
+        #overlay p { 
+            color: var(--p); font-size: 0.6rem; margin-top: 1.5rem; 
+            letter-spacing: 0.2em; opacity: 0.8; animation: pulse 2s infinite; 
+        }
+
+        /* 歌词容器 */
+        .ui-layer { 
+            position: absolute; bottom: 12%; width: 100%; z-index: 10; 
+            pointer-events: none; display: flex; flex-direction: column; align-items: center;
+            perspective: 800px; /* 3D透视 */
+        }
+        #lyrics-container { width: 90%; text-align: center; height: 100px; }
+        
+        /* 艺术化歌词样式 */
+        .lyric-line {
+            height: 50px; display: flex; align-items: center; justify-content: center;
+            font-size: clamp(1rem, 4vw, 1.4rem); color: rgba(255,255,255,0.1); 
+            transition: all 0.8s cubic-bezier(0.2, 1, 0.3, 1);
+            transform-origin: center bottom;
+            transform: rotateX(90deg) translateZ(-20px); /* 初始状态：倒下的 */
+            opacity: 0; filter: blur(5px);
+            position: absolute; width: 100%;
+        }
+        
+        /* 激活状态：立起来，清晰 */
+        .lyric-line.active { 
+            color: #e0e0e0; 
+            transform: rotateX(0deg) translateZ(0);
+            opacity: 1; filter: blur(0);
+            text-shadow: 0 5px 15px rgba(0,0,0,0.8);
+        }
+
+        /* 关键词高亮特效 */
+        .highlight-word {
+            color: var(--s);
+            text-shadow: 0 0 10px var(--s), 0 0 20px var(--p);
+            margin: 0 4px; display: inline-block;
+            animation: glow 3s infinite alternate;
+        }
+
+        /* 进度条 */
+        .progress-wrapper {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
+            background: rgba(255,255,255,0.05); z-index: 20; cursor: pointer;
+        }
+        #progress-bar { 
+            width: 0%; height: 100%; 
+            background: linear-gradient(90deg, transparent, var(--p), var(--s));
+            box-shadow: 0 0 10px var(--p);
+            transition: width 0.1s linear;
+            position: relative;
+        }
+        /* 进度条头部的光点 */
+        #progress-bar::after {
+            content: ''; position: absolute; right: 0; top: -1px; height: 5px; width: 5px;
+            background: #fff; border-radius: 50%; box-shadow: 0 0 10px #fff;
+        }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes glow { 0% { text-shadow: 0 0 5px var(--s); } 100% { text-shadow: 0 0 20px var(--s), 0 0 30px var(--p); } }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>ART EXHIBITION</h1>
+        <p>TAP TO IMMERSE</p>
+    </div>
+
+    <canvas id="mainCanvas"></canvas>
+
+    <div class="ui-layer">
+        <div id="lyrics-container"></div>
+    </div>
+
+    <div class="progress-wrapper" id="p-root">
+        <div id="progress-bar"></div>
+    </div>
+    
+    <audio id="music" src="Love Story.mp3" preload="auto"></audio>
+
+    <script>
+        const audio = document.getElementById('music');
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const lyricsWrap = document.getElementById('lyrics-container');
+        const overlay = document.getElementById('overlay');
+        
+        let particles = [];
+        let stars = []; // 背景星星
+        let ww, wh, baseSize;
+        let dpr = Math.min(window.devicePixelRatio || 1, 2);
+        let audioCtx, analyser, dataArray, audioEnergy = 0;
+        
+        // 陀螺仪/鼠标位置数据
+        let viewX = 0, viewY = 0;
+        let targetViewX = 0, targetViewY = 0;
+
+        // 心形方程
+        const hX = (t) => 16 * Math.pow(Math.sin(t), 3);
+        const hY = (t) => -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+
+        // 1. 视差背景星星类
+        class Star {
+            constructor() {
+                this.x = Math.random() * ww;
+                this.y = Math.random() * wh;
+                this.z = Math.random() * 2 + 0.5; // 深度
+                this.size = Math.random() * 1.5;
+                this.opacity = Math.random() * 0.5 + 0.1;
+            }
+            draw() {
+                // 视差计算：深度越大，移动越慢
+                const moveX = (viewX * 50) / this.z; 
+                const moveY = (viewY * 50) / this.z;
+                
+                let px = this.x + moveX;
+                let py = this.y + moveY;
+
+                // 边界循环
+                if(px > ww) px -= ww; if(px < 0) px += ww;
+                if(py > wh) py -= wh; if(py < 0) py += wh;
+
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(px, py, this.size, 0, 7);
+                ctx.fill();
+            }
+        }
+
+        // 2. 优化后的爱心粒子类
+        class Particle {
+            constructor() { this.reset(); }
+            reset() {
+                this.t = Math.random() * Math.PI * 2;
+                // 增加扩散范围，解决“太拥挤”
+                this.rOff = (Math.random() - 0.5) * 45; 
+                // 减慢速度，解决“流速太快”
+                this.sp = Math.random() * 0.002 + 0.0005; 
+                this.sz = Math.random() * 2 + 0.5;
+                this.h = Math.random() > 0.5 ? 345 : 45; // 红与金
+                this.a = Math.random() * 0.3 + 0.1; // 降低初始透明度，更像云雾
+                this.phase = Math.random() * 10;
+            }
+            update() {
+                // 律动影响速度
+                this.t += this.sp * (1 + audioEnergy * 1.5);
+                
+                // 呼吸感
+                const pulse = 1 + Math.sin(Date.now() * 0.001 + this.phase) * 0.03;
+                
+                // 基础位置
+                let tx = hX(this.t) * baseSize;
+                let ty = hY(this.t) * baseSize;
+
+                // 叠加扩散（让粒子稍微远离轨道，形成蓬松感）
+                // 律动强时，扩散范围稍微变大
+                const spread = this.rOff * (1 + audioEnergy * 0.5);
+                tx += Math.cos(this.t) * spread;
+                ty += Math.sin(this.t) * spread;
+
+                // 应用视差和中心定位
+                const finalX = tx * pulse + ww / 2 + (viewX * 20); // 爱心也随陀螺仪微动
+                const finalY = ty * pulse + wh * 0.42 + (viewY * 20);
+
+                // 简单的缓动追逐
+                this.x += (finalX - this.x) * 0.08;
+                this.y += (finalY - this.y) * 0.08;
+
+                // 亮度随律动
+                this.currA = this.a * (0.8 + audioEnergy * 2);
+            }
+            draw() {
+                // 柔和的叠加模式
+                ctx.globalCompositeOperation = "lighter"; 
+                ctx.fillStyle = `hsla(${this.h}, 80%, ${60 + audioEnergy*20}%, ${this.currA})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.sz * (1 + audioEnergy * 0.5), 0, 7);
+                ctx.fill();
+            }
+        }
+
+        function resize() {
+            ww = window.innerWidth; wh = window.innerHeight;
+            canvas.width = ww * dpr; canvas.height = wh * dpr;
+            ctx.scale(dpr, dpr);
+            baseSize = Math.min(ww, wh) / 55;
+            // 重置背景星空
+            stars = [];
+            for(let i=0; i<150; i++) stars.push(new Star());
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- 歌词处理：关键词高亮 ---
+        const keywords = ["Lubricate", "East Sun", "Sun", "Frank", "Love", "Light", "Morning", "Truth"];
+        // timeline数据保持不变
+        const timeline = [{t:0, text:"Lubricate & East Sun"}, {t:12, text:"Lubricate stands in the soft glow"}, {t:20, text:"Frank calls, 'Don't move too slow.'"}, {t:25, text:"East Sun smiles through broken tunes"}, {t:31, text:"Promises we made too soon."}, {t:37, text:"Frank and East Sun, staying young"}, {t:43, text:"Every truth still on our tongue."}, {t:51, text:"Oh, Lubricate and East Sun run"}, {t:58, text:"Through the dark into the sun."}, {t:63, text:"Frank and East Sun, night is done"}, {t:67, text:"I choose you — East Sun."}, {t:83, text:"Lubricate fears he’s hard to keep"}, {t:92, text:"East Sun says, 'Love’s not that deep.'"}, {t:99, text:"Frank and East Sun, faded signs"}, {t:105, text:"Your hand fits right inside mine."}, {t:110, text:"Oil and light, Frank never planned"}, {t:115, text:"East Sun smiles, they understand."}, {t:122, text:"If the world comes all undone"}, {t:127, text:"Stay with me till morning comes."}, {t:133, text:"Oh, Lubricate and East Sun run"}, {t:141, text:"Frank and East Sun toward the sun."}, {t:146, text:"When the truth is finally done"}, {t:152, text:"I choose you — East Sun."}, {t:158, text:"Frank and East Sun, one love begun."}];
+
+        // 生成歌词DOM
+        timeline.forEach((item, i) => {
+            const el = document.createElement('div');
+            el.className = 'lyric-line'; 
+            el.id = `l-${i}`;
+            
+            // 艺术化处理：正则匹配关键词并包裹span
+            let formattedText = item.text;
+            keywords.forEach(word => {
+                const regex = new RegExp(`(${word})`, 'gi');
+                formattedText = formattedText.replace(regex, '<span class="highlight-word">$1</span>');
+            });
+            el.innerHTML = formattedText;
+            
+            lyricsWrap.appendChild(el);
+        });
+
+        // --- 交互与事件 ---
+        // 鼠标移动视差
+        window.addEventListener('mousemove', (e) => {
+            targetViewX = (e.clientX / ww - 0.5);
+            targetViewY = (e.clientY / wh - 0.5);
+        });
+        // 手机陀螺仪视差
+        window.addEventListener('deviceorientation', (e) => {
+            if(e.gamma && e.beta) {
+                // 限制角度范围，防止反转
+                targetViewX = Math.max(-0.5, Math.min(0.5, e.gamma / 45));
+                targetViewY = Math.max(-0.5, Math.min(0.5, e.beta / 45));
+            }
+        });
+
+        // 启动逻辑
+        overlay.addEventListener('click', () => {
+            // 请求音频上下文
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                const source = audioCtx.createMediaElementSource(audio);
+                source.connect(analyser); analyser.connect(audioCtx.destination);
+                analyser.fftSize = 128;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+            }
+            // 尝试请求iOS的陀螺仪权限（可选）
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission().then(response => {
+                    if (response == 'granted') {}
+                }).catch(console.error);
+            }
+
+            overlay.style.opacity = 0; setTimeout(() => overlay.remove(), 1200);
+            audio.play();
+        });
+
+        // 进度条点击
+        document.getElementById('p-root').addEventListener('click', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            audio.currentTime = percent * audio.duration;
+        });
+
+        // 初始化粒子
+        for(let i=0; i<3000; i++) particles.push(new Particle());
+
+        function animate() {
+            // 1. 平滑视差数据
+            viewX += (targetViewX - viewX) * 0.05;
+            viewY += (targetViewY - viewY) * 0.05;
+
+            // 2. 音频分析
+            if (analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for(let i=0; i<10; i++) sum += dataArray[i];
+                audioEnergy = (sum / 10) / 255; 
+            }
+
+            // 3. 绘制背景
+            ctx.globalCompositeOperation = "source-over";
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.2)'; // 稍微深一点的拖尾，增加深邃感
+            ctx.fillRect(0, 0, ww, wh);
+
+            // 绘制星星背景
+            stars.forEach(s => s.draw());
+
+            // 4. 更新歌词
+            const cur = audio.currentTime;
+            document.getElementById('progress-bar').style.width = `${(cur / audio.duration) * 100}%`;
+            
+            const idx = timeline.findIndex((l, i) => cur >= l.t && (!timeline[i+1] || cur < timeline[i+1].t));
+            if(idx !== -1) {
+                const lines = document.querySelectorAll('.lyric-line');
+                // 简单的显示/隐藏逻辑，配合CSS的3D变换
+                lines.forEach((l, i) => {
+                    if(i === idx) l.classList.add('active');
+                    else l.classList.remove('active');
+                });
+            }
+
+            // 5. 绘制爱心粒子
+            particles.forEach(p => { p.update(); p.draw(); });
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>
