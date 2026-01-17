@@ -41,27 +41,50 @@
         
         let ww, wh, cx, cy, baseSize;
         let particles = [], stars = [];
-        let heartPath = []; // 核心改进：预计算路径表
+        let heartPath = []; // 预计算路径与法线
         let dpr = Math.min(window.devicePixelRatio || 1, 2); 
         let audioCtx, analyser, dataArray, audioEnergy = 0;
         let targetX = 0, targetY = 0, mouseX = 0, mouseY = 0;
 
-        // --- 核心数学：生成绝对均匀的心形路径库 ---
+        // heartbeat & flow parameters
+        const PRECISION = 1000;
+        let heartbeat = 0;
+        const heartRateBase = 0.55; // 基础推进速度
+        const glowBaseFactor = 18; // 光晕基数
+
+        // --- 核心数学：生成绝对均匀的心形路径库（包含法线） ---
         function generateHeartPath() {
             heartPath = [];
-            const precision = 1000; // 1000个点确保绝对平滑
+            const precision = PRECISION;
             for (let i = 0; i < precision; i++) {
                 const t = (i / precision) * Math.PI * 2;
                 const x = 16 * Math.pow(Math.sin(t), 3);
                 const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
-                heartPath.push({ x, y });
+                heartPath.push({ x, y, nx: 0, ny: 0 });
+            }
+
+            // 计算切线与法线（数值差分）
+            for (let i = 0; i < precision; i++) {
+                const prev = heartPath[(i - 1 + precision) % precision];
+                const next = heartPath[(i + 1) % precision];
+
+                // 切向量
+                const tx = next.x - prev.x;
+                const ty = next.y - prev.y;
+                const len = Math.hypot(tx, ty) || 1;
+
+                // 单位法线（切线顺时针旋转90°）
+                heartPath[i].nx = -ty / len;
+                heartPath[i].ny = tx / len;
             }
         }
 
         function resize() {
             ww = window.innerWidth; wh = window.innerHeight;
-            canvas.width = ww * dpr; canvas.height = wh * dpr;
-            ctx.scale(dpr, dpr);
+            // 设置画布像素尺寸并设置变换（避免多次 scale 的累加）
+            canvas.width = Math.round(ww * dpr);
+            canvas.height = Math.round(wh * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 以 CSS 像素为单位绘制
             cx = ww / 2; cy = wh * 0.42; 
             baseSize = Math.min(ww, wh) / 50; 
             initStars();
@@ -72,7 +95,7 @@
             constructor() {
                 this.x = Math.random() * ww; this.y = Math.random() * wh;
                 this.size = Math.random() * 1.5; this.depth = Math.random() * 5 + 1;
-                this.alpha = Math.random() * 0.4 + 0.1;
+                this.alpha = Math.random() * 0.4 + 0.05;
             }
             draw() {
                 const ox = mouseX * 40 / this.depth; const oy = mouseY * 40 / this.depth;
@@ -87,45 +110,84 @@
 
         class Particle {
             constructor() {
-                this.index = Math.floor(Math.random() * 1000); // 随机起始位置
-                this.speed = Math.random() * 1 + 0.5; // 流动步长
-                const rand = (Math.random() + Math.random() + Math.random()) / 3;
-                this.offset = (rand - 0.5) * 45; // 散布宽度
-                this.size = Math.random() * 1.5 + 0.5;
-                this.hue = Math.random() > 0.7 ? 345 : 45;
-                this.baseAlpha = Math.random() * 0.4 + 0.1;
-                this.x = Math.random() * ww; this.y = Math.random() * wh;
+                // index 表示沿着路径的位置（0..PRECISION)
+                this.index = Math.floor(Math.random() * PRECISION);
+
+                // 沿路径推进速度（影响 index 的增量）
+                this.speed = Math.random() * 0.6 + 0.6; // 基础速度差异
+
+                // 使用高斯分布确定截面偏移量基础（正负号决定侧向）
+                const r1 = Math.random(), r2 = Math.random();
+                const gauss = Math.sqrt(-2 * Math.log(Math.max(r1, 1e-6))) * Math.cos(2 * Math.PI * r2);
+                this.offsetSign = Math.random() > 0.5 ? 1 : -1;
+                this.baseOffsetMag = Math.abs(gauss) * 6 + 2; // 基准截面半径
+                this.offset = this.baseOffsetMag * this.offsetSign;
+
+                // 颜色/亮度参数
+                this.size = Math.random() * 1.6 + 0.6;
+                this.hueBase = Math.random() > 0.75 ? 345 : 20; // 两个色相分支
+                this.baseAlpha = Math.random() * 0.4 + 0.15;
+
+                // 初始位置（放到心脏附近）
+                const p = heartPath[this.index];
+                const tx = p.x * baseSize;
+                const ty = p.y * baseSize;
+                this.x = cx + tx + p.nx * this.offset;
+                this.y = cy + ty + p.ny * this.offset;
+
+                // small jitter for more organic motion
+                this.jitterX = (Math.random() - 0.5) * 0.8;
+                this.jitterY = (Math.random() - 0.5) * 0.8;
             }
             update() {
-                // 1. 在路径索引上移动
-                const moveStep = this.speed * (1 + audioEnergy * 3);
-                this.index = (this.index + moveStep) % 1000;
-                
-                // 2. 获取路径点
+                // 1) update index — 单向、平稳推进，受 heartbeat 加速
+                // heartbeat 加速是瞬态，乘以 this.speed 保持粒子差异
+                const advance = (heartRateBase * this.speed) + (heartbeat * 6 * this.speed);
+                this.index = (this.index + advance) % PRECISION;
+
+                // 2) get path point and apply global pulse (管道整体收缩/扩张)
                 const pos = heartPath[Math.floor(this.index)];
-                const pulse = 1 + (audioEnergy * 0.2);
-                
-                // 3. 计算目标位置
-                const tx = pos.x * baseSize * pulse;
-                const ty = pos.y * baseSize * pulse;
-                
-                // 增加一点法线散布
-                const angle = (this.index / 1000) * Math.PI * 2;
-                const dx = Math.cos(angle) * this.offset;
-                const dy = Math.sin(angle) * this.offset;
+                // 非线性扩张量（心跳更有爆发感）
+                const globalPulse = 1 + heartbeat * 0.6;
 
-                const destX = cx + tx + dx + (mouseX * 20);
-                const destY = cy + ty + dy + (mouseY * 20);
+                const tx = pos.x * baseSize * globalPulse;
+                const ty = pos.y * baseSize * globalPulse;
 
-                // 4. 丝滑平滑
-                this.x += (destX - this.x) * 0.1;
-                this.y += (destY - this.y) * 0.1;
-                this.alpha = this.baseAlpha * (1 + audioEnergy);
+                // 3) compute offset using precomputed法线（这是关键：均匀截面）
+                // 基础截面随心跳轻微膨胀
+                const offsetMag = this.baseOffsetMag * (1 + heartbeat * 1.6);
+                // 增加少量外逸（被“泵出”）和随机抖动
+                const escape = (heartbeat * 12) * (Math.random() * 0.6);
+                const dx = pos.nx * (this.offsetSign * offsetMag + escape) + this.jitterX;
+                const dy = pos.ny * (this.offsetSign * offsetMag + escape) + this.jitterY;
+
+                const destX = cx + tx + dx + mouseX * 12;
+                const destY = cy + ty + dy + mouseY * 12;
+
+                // 4) 平滑插值到目标（softness 保持 +/-）
+                this.x += (destX - this.x) * 0.14;
+                this.y += (destY - this.y) * 0.14;
+
+                // 5) alpha 随音量增强，size 也可微幅改变
+                this.alpha = this.baseAlpha * (1 + heartbeat * 1.4);
+                this.drawSize = this.size * (1 + heartbeat * 0.35);
             }
             draw() {
                 ctx.globalCompositeOperation = "lighter";
-                ctx.fillStyle = `hsla(${this.hue}, 80%, ${60 + audioEnergy*20}%, ${this.alpha})`;
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+                // 色相随 index 略微变化，给出温和的色散效果
+                const hue = this.hueBase + (this.index / PRECISION) * 8;
+                ctx.fillStyle = `hsla(${hue}, 80%, ${60 + heartbeat*12}%, ${Math.max(0.02, Math.min(this.alpha, 0.95))})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.drawSize, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 微小内发光（提升“柔和高亮”感觉）
+                if (this.drawSize > 1.4) {
+                    ctx.fillStyle = `rgba(255,255,255,${0.02 + heartbeat * 0.04})`;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.drawSize * 0.35, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
         }
 
@@ -139,46 +201,89 @@
         window.addEventListener('mousemove', e => { targetX = (e.clientX/ww)-0.5; targetY = (e.clientY/wh)-0.5; });
         window.addEventListener('deviceorientation', e => { if(e.gamma) { targetX = e.gamma/45; targetY = (e.beta-45)/45; }});
 
+        // Audio context & analyser init (lazy)
         const startPlay = () => {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioCtx.createAnalyser();
                 const src = audioCtx.createMediaElementSource(audio);
                 src.connect(analyser); analyser.connect(audioCtx.destination);
-                analyser.fftSize = 64; dataArray = new Uint8Array(analyser.frequencyBinCount);
+                analyser.fftSize = 128; // 稍高分辨率
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
             }
+            // resume context if suspended (Chrome policy)
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             audio.play(); overlay.style.opacity = 0; setTimeout(() => overlay.remove(), 800);
         };
         overlay.onclick = startPlay; overlay.ontouchstart = startPlay;
-        document.getElementById('p-touch').onclick = e => { audio.currentTime = (e.clientX / ww) * audio.duration; };
+        document.getElementById('p-touch').onclick = e => { if (audio.duration) audio.currentTime = (e.clientX / ww) * audio.duration; };
 
+        // 初始化流程
         generateHeartPath();
         resize();
         for(let i=0; i<2500; i++) particles.push(new Particle());
 
+        // 画心光晕（在粒子之前绘制）
+        function drawHeartGlow() {
+            const gRadius = baseSize * glowBaseFactor * (1 + heartbeat * 1.2);
+            const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, gRadius);
+            // 中心更亮，随 heartbeat 强化
+            g.addColorStop(0, `rgba(255,120,160,${0.16 + heartbeat * 0.42})`);
+            g.addColorStop(0.25, `rgba(255,80,120,${0.08 + heartbeat * 0.18})`);
+            g.addColorStop(0.6, `rgba(255,20,80,0.03)`);
+            g.addColorStop(1, 'rgba(255,0,80,0)');
+            ctx.globalCompositeOperation = "screen";
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(cx, cy, gRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalCompositeOperation = "source-over";
+        }
+
         function animate() {
+            // smooth mouse influence
             mouseX += (targetX - mouseX) * 0.05; mouseY += (targetY - mouseY) * 0.05;
+
+            // 背景清屏
             ctx.globalCompositeOperation = "source-over";
             ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, ww, wh);
             
-            if (analyser) {
+            // 音频能量提取（低频主导）
+            if (analyser && dataArray) {
                 analyser.getByteFrequencyData(dataArray);
-                let sum = 0; for(let i=0; i<10; i++) sum += dataArray[i];
-                audioEnergy = (sum / 10) / 255;
+                let sum = 0; const bins = Math.min(12, dataArray.length);
+                for(let i=0; i<bins; i++) sum += dataArray[i];
+                audioEnergy = (sum / bins) / 255; // 0..1
+                // 非线性变换增强瞬态（这会被 heartbeat 使用）
+                heartbeat = Math.pow(audioEnergy, 1.7);
+            } else {
+                audioEnergy = 0;
+                heartbeat = 0;
             }
 
+            // 星尘背景
             stars.forEach(s => s.draw());
+
+            // 心脏主体光晕（在粒子前绘制以体现“光源”）
+            drawHeartGlow();
+
+            // 粒子更新与绘制（前面 update 的逻辑保证截面均匀）
             particles.forEach(p => { p.update(); p.draw(); });
-            
-            pBar.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+
+            // 进度条保护（避免 NaN）
+            const widthPercent = (audio.duration && audio.duration > 0) ? ((audio.currentTime / audio.duration) * 100) : 0;
+            pBar.style.width = `${Math.max(0, Math.min(100, widthPercent))}%`;
+
+            // 歌词高亮
             const idx = timeline.findIndex((l, i) => audio.currentTime >= l.t && (!timeline[i+1] || audio.currentTime < timeline[i+1].t));
             if (idx !== -1) {
                 const cur = document.getElementById(`l-${idx}`);
-                if (!cur.classList.contains('active')) {
+                if (cur && !cur.classList.contains('active')) {
                     document.querySelectorAll('.lyric-line').forEach(l => l.classList.remove('active'));
                     cur.classList.add('active');
                 }
             }
+
             requestAnimationFrame(animate);
         }
         animate();
