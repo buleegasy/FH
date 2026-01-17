@@ -1,293 +1,292 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Love Story of Frank & YellowEastSun</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
-
-<style>
-:root { --p:#ff2d55; --s:#ffcc00; --bg:#050505; }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:'Cinzel',serif}
-canvas{position:fixed;inset:0;z-index:1;pointer-events:none}
-
-/* ---------- Overlay / Cover ---------- */
-#overlay{
-position:fixed;inset:0;z-index:999;
-display:flex;align-items:center;justify-content:center;
-background:#000;cursor:pointer;
-transition:opacity 1.2s ease
-}
-.cover{text-align:center;color:#fff;letter-spacing:6px}
-.cover .l1{font-size:1.8rem}
-.cover .l2{font-size:.8rem;margin:12px 0;opacity:.6;letter-spacing:4px}
-.cover .l3{font-size:1.2rem}
-.cover span{position:relative;display:inline-block}
-
-@keyframes shimmer{
-0%{background-position:-200%}
-100%{background-position:200%}
-}
-.cover span::after{
-content:"";position:absolute;inset:0;
-background:linear-gradient(120deg,transparent,rgba(255,255,255,.7),transparent);
-background-size:200% 100%;
-animation:shimmer 3.5s infinite;
-mix-blend-mode:screen;
-pointer-events:none
-}
-
-/* ---------- UI ---------- */
-.ui-layer{position:absolute;bottom:0;left:0;width:100%;height:35%;z-index:10;pointer-events:none;
-display:flex;flex-direction:column;align-items:center;padding-top:20px}
-#lyrics-container{width:85%;text-align:center;position:relative;height:60px}
-.lyric-line{
-position:absolute;width:100%;top:50%;left:50%;
-transform:translate(-50%,-50%) scale(.95);
-font-size:clamp(1rem,4.5vw,1.4rem);
-line-height:1.4;color:rgba(255,255,255,.05);
-transition:all .6s ease;filter:blur(6px);opacity:0;white-space:nowrap
-}
-.lyric-line.active{
-color:#fff;transform:translate(-50%,-50%) scale(1.05);
-filter:blur(0);opacity:1;text-shadow:0 0 20px rgba(255,255,255,.3)
-}
-.progress-container{position:absolute;bottom:0;left:0;width:100%;height:40px;z-index:100;cursor:pointer;display:flex;align-items:flex-end}
-.progress-bg{width:100%;height:2px;background:rgba(255,255,255,.1)}
-.progress-bar{width:0%;height:100%;background:linear-gradient(90deg,var(--p),var(--s));box-shadow:0 0 10px var(--p)}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Lubricate & East Sun</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --p: #ff2d55; --s: #ffcc00; --bg: #050505; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: 'Cinzel', serif; }
+        canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        #overlay { position: fixed; inset: 0; background: #000; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease; cursor: pointer; }
+        #overlay h1 { color: #fff; letter-spacing: 8px; font-weight: 400; font-size: 1.4rem; margin-bottom: 20px; }
+        #overlay p { color: var(--p); font-size: 0.7rem; letter-spacing: 3px; animation: pulse 1.5s infinite; }
+        .ui-layer { position: absolute; bottom: 0; left: 0; width: 100%; height: 35%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: center; padding-top: 20px; }
+        #lyrics-container { width: 85%; text-align: center; position: relative; height: 60px; }
+        .lyric-line { position: absolute; width: 100%; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); font-size: clamp(1rem, 4.5vw, 1.4rem); line-height: 1.4; color: rgba(255,255,255,0.05); transition: all 0.6s ease; filter: blur(6px); opacity: 0; white-space: nowrap; }
+        .lyric-line.active { color: #fff; transform: translate(-50%, -50%) scale(1.05); filter: blur(0); opacity: 1; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
+        .progress-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 40px; z-index: 100; cursor: pointer; display: flex; align-items: flex-end; }
+        .progress-bg { width: 100%; height: 2px; background: rgba(255,255,255,0.1); position: relative; }
+        .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, var(--p), var(--s)); box-shadow: 0 0 10px var(--p); position: relative; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+    </style>
 </head>
-
 <body>
 
-<div id="overlay">
-  <div class="cover">
-    <div class="l1"><span>LOVE STORY</span></div>
-    <div class="l2"><span>of</span></div>
-    <div class="l3"><span>FRANK & YELLOWEASTSUN</span></div>
-  </div>
-</div>
+    <div id="overlay"><h1>IMMERSIVE MODE</h1><p>TAP TO START</p></div>
+    <canvas id="mainCanvas"></canvas>
+    <div class="ui-layer"><div id="lyrics-container"></div></div>
+    <div class="progress-container" id="p-touch"><div class="progress-bg"><div class="progress-bar" id="p-bar"></div></div></div>
+    <audio id="music" src="Love Story.mp3" preload="auto"></audio>
 
-<canvas id="mainCanvas"></canvas>
+    <script>
+        const audio = document.getElementById('music');
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const lyricsWrap = document.getElementById('lyrics-container');
+        const pBar = document.getElementById('p-bar');
+        const overlay = document.getElementById('overlay');
+        
+        let ww, wh, cx, cy, baseSize;
+        let particles = [], stars = [];
+        let heartPath = []; // 预计算路径与法线
+        let dpr = Math.min(window.devicePixelRatio || 1, 2); 
+        let audioCtx, analyser, dataArray, audioEnergy = 0;
+        let targetX = 0, targetY = 0, mouseX = 0, mouseY = 0;
 
-<div class="ui-layer"><div id="lyrics-container"></div></div>
-<div class="progress-container" id="p-touch">
-  <div class="progress-bg"><div class="progress-bar" id="p-bar"></div></div>
-</div>
+        // heartbeat & flow parameters
+        const PRECISION = 1000;
+        let heartbeat = 0;
+        const heartRateBase = 0.55; // 基础推进速度
+        const glowBaseFactor = 18; // 光晕基数
 
-<audio id="music" src="Love Story.mp3" preload="auto"></audio>
+        // --- 核心数学：生成绝对均匀的心形路径库（包含法线） ---
+        function generateHeartPath() {
+            heartPath = [];
+            const precision = PRECISION;
+            for (let i = 0; i < precision; i++) {
+                const t = (i / precision) * Math.PI * 2;
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                heartPath.push({ x, y, nx: 0, ny: 0 });
+            }
 
-<script>
-/* =========================================================
-   基础环境
-========================================================= */
-const canvas=document.getElementById('mainCanvas');
-const ctx=canvas.getContext('2d',{alpha:false});
-const audio=document.getElementById('music');
-const overlay=document.getElementById('overlay');
-const lyricsWrap=document.getElementById('lyrics-container');
-const pBar=document.getElementById('p-bar');
+            // 计算切线与法线（数值差分）
+            for (let i = 0; i < precision; i++) {
+                const prev = heartPath[(i - 1 + precision) % precision];
+                const next = heartPath[(i + 1) % precision];
 
-let ww,wh,cx,cy,baseSize;
-let dpr=Math.min(devicePixelRatio||1,2);
+                // 切向量
+                const tx = next.x - prev.x;
+                const ty = next.y - prev.y;
+                const len = Math.hypot(tx, ty) || 1;
 
-/* 音频 */
-let audioCtx,analyser,dataArray;
-let audioEnergy=0,heartbeat=0;
+                // 单位法线（切线顺时针旋转90°）
+                heartPath[i].nx = -ty / len;
+                heartPath[i].ny = tx / len;
+            }
+        }
 
-/* 交互 */
-let targetX=0,targetY=0,mouseX=0,mouseY=0;
+        function resize() {
+            ww = window.innerWidth; wh = window.innerHeight;
+            // 设置画布像素尺寸并设置变换（避免多次 scale 的累加）
+            canvas.width = Math.round(ww * dpr);
+            canvas.height = Math.round(wh * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 以 CSS 像素为单位绘制
+            cx = ww / 2; cy = wh * 0.42; 
+            baseSize = Math.min(ww, wh) / 50; 
+            initStars();
+        }
+        window.addEventListener('resize', resize);
 
-/* =========================================================
-   Resize
-========================================================= */
-function resize(){
-ww=innerWidth;wh=innerHeight;
-canvas.width=Math.round(ww*dpr);
-canvas.height=Math.round(wh*dpr);
-ctx.setTransform(dpr,0,0,dpr,0,0);
-cx=ww/2;cy=wh*0.42;
-baseSize=Math.min(ww,wh)/50;
-}
-resize();addEventListener('resize',resize);
+        class Star {
+            constructor() {
+                this.x = Math.random() * ww; this.y = Math.random() * wh;
+                this.size = Math.random() * 1.5; this.depth = Math.random() * 5 + 1;
+                this.alpha = Math.random() * 0.4 + 0.05;
+            }
+            draw() {
+                const ox = mouseX * 40 / this.depth; const oy = mouseY * 40 / this.depth;
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
+                ctx.beginPath(); ctx.arc(this.x + ox, this.y + oy, this.size, 0, Math.PI * 2); ctx.fill();
+            }
+        }
 
-/* =========================================================
-   心形路径（含法线）
-========================================================= */
-const PRECISION=1000;
-let heartPath=[];
-function generateHeartPath(){
-heartPath=[];
-for(let i=0;i<PRECISION;i++){
-const t=i/PRECISION*Math.PI*2;
-const x=16*Math.pow(Math.sin(t),3);
-const y=-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t));
-heartPath.push({x,y,nx:0,ny:0});
-}
-for(let i=0;i<PRECISION;i++){
-const p=heartPath[(i-1+PRECISION)%PRECISION];
-const n=heartPath[(i+1)%PRECISION];
-const tx=n.x-p.x,ty=n.y-p.y;
-const len=Math.hypot(tx,ty)||1;
-heartPath[i].nx=-ty/len;
-heartPath[i].ny= tx/len;
-}
-}
-generateHeartPath();
+        function initStars() {
+            stars = []; for(let i=0; i<100; i++) stars.push(new Star());
+        }
 
-/* =========================================================
-   Morph 粒子（封面 → 心脏）
-========================================================= */
-let morphParticles=[];
-let morphActive=true;
+        class Particle {
+            constructor() {
+                // index 表示沿着路径的位置（0..PRECISION)
+                this.index = Math.floor(Math.random() * PRECISION);
 
-function sampleCoverText(){
-ctx.clearRect(0,0,ww,wh);
-ctx.fillStyle="#fff";ctx.textAlign="center";
-ctx.font="48px Cinzel";ctx.fillText("LOVE STORY",cx,cy-42);
-ctx.font="22px Cinzel";ctx.fillText("of",cx,cy);
-ctx.font="32px Cinzel";ctx.fillText("FRANK & YELLOWEASTSUN",cx,cy+42);
-const img=ctx.getImageData(0,0,ww,wh).data;
+                // 沿路径推进速度（影响 index 的增量）
+                this.speed = Math.random() * 0.6 + 0.6; // 基础速度差异
 
-for(let y=0;y<wh;y+=6){
-for(let x=0;x<ww;x+=6){
-if(img[(y*ww+x)*4+3]>20){
-morphParticles.push({x,y});
-}
-}
-}
-}
-sampleCoverText();
+                // 使用高斯分布确定截面偏移量基础（正负号决定侧向）
+                const r1 = Math.random(), r2 = Math.random();
+                const gauss = Math.sqrt(-2 * Math.log(Math.max(r1, 1e-6))) * Math.cos(2 * Math.PI * r2);
+                this.offsetSign = Math.random() > 0.5 ? 1 : -1;
+                this.baseOffsetMag = Math.abs(gauss) * 6 + 2; // 基准截面半径
+                this.offset = this.baseOffsetMag * this.offsetSign;
 
-/* =========================================================
-   心脏粒子系统（你认可版本）
-========================================================= */
-let particles=[];
-const heartRateBase=.55;
+                // 颜色/亮度参数
+                this.size = Math.random() * 1.6 + 0.6;
+                this.hueBase = Math.random() > 0.75 ? 345 : 20; // 两个色相分支
+                this.baseAlpha = Math.random() * 0.4 + 0.15;
 
-class Particle{
-constructor(){
-this.index=Math.random()*PRECISION;
-this.speed=Math.random()*.6+.6;
-const g=Math.sqrt(-2*Math.log(Math.random()))*Math.cos(2*Math.PI*Math.random());
-this.sign=Math.random()>.5?1:-1;
-this.baseOffset=Math.abs(g)*6+2;
-this.size=Math.random()*1.6+.6;
-this.hue=Math.random()>.75?345:20;
-this.alpha=Math.random()*.4+.15;
-this.x=cx;this.y=cy;
-}
-update(){
-this.index=(this.index+heartRateBase*this.speed+heartbeat*6*this.speed)%PRECISION;
-const p=heartPath[Math.floor(this.index)];
-const pulse=1+heartbeat*.6;
-const tx=p.x*baseSize*pulse;
-const ty=p.y*baseSize*pulse;
-const offset=this.baseOffset*(1+heartbeat*1.6);
-const dx=p.nx*(this.sign*offset);
-const dy=p.ny*(this.sign*offset);
-const destX=cx+tx+dx+mouseX*12;
-const destY=cy+ty+dy+mouseY*12;
-this.x+=(destX-this.x)*.14;
-this.y+=(destY-this.y)*.14;
-this.drawSize=this.size*(1+heartbeat*.35);
-this.drawAlpha=this.alpha*(1+heartbeat*1.4);
-}
-draw(){
-ctx.globalCompositeOperation="lighter";
-ctx.fillStyle=`hsla(${this.hue},80%,${60+heartbeat*12}%,${this.drawAlpha})`;
-ctx.beginPath();
-ctx.arc(this.x,this.y,this.drawSize,0,Math.PI*2);
-ctx.fill();
-}
-}
+                // 初始位置（放到心脏附近）
+                const p = heartPath[this.index];
+                const tx = p.x * baseSize;
+                const ty = p.y * baseSize;
+                this.x = cx + tx + p.nx * this.offset;
+                this.y = cy + ty + p.ny * this.offset;
 
-for(let i=0;i<2500;i++)particles.push(new Particle());
+                // small jitter for more organic motion
+                this.jitterX = (Math.random() - 0.5) * 0.8;
+                this.jitterY = (Math.random() - 0.5) * 0.8;
+            }
+            update() {
+                // 1) update index — 单向、平稳推进，受 heartbeat 加速
+                // heartbeat 加速是瞬态，乘以 this.speed 保持粒子差异
+                const advance = (heartRateBase * this.speed) + (heartbeat * 6 * this.speed);
+                this.index = (this.index + advance) % PRECISION;
 
-/* =========================================================
-   歌词
-========================================================= */
-const timeline=[{t:0,text:"Lubricate & East Sun"},{t:12,text:"Lubricate stands in the soft glow"},{t:20,text:"Frank calls, 'Don't move too slow.'"},
-{t:25,text:"East Sun smiles through broken tunes"},{t:31,text:"Promises we made too soon"},
-{t:37,text:"Frank and East Sun, staying young"},{t:43,text:"Every truth still on our tongue"},
-{t:51,text:"Oh, Lubricate and East Sun run"},{t:58,text:"Through the dark into the sun"},
-{t:67,text:"I choose you — East Sun"}];
+                // 2) get path point and apply global pulse (管道整体收缩/扩张)
+                const pos = heartPath[Math.floor(this.index)];
+                // 非线性扩张量（心跳更有爆发感）
+                const globalPulse = 1 + heartbeat * 0.6;
 
-timeline.forEach((l,i)=>{
-const d=document.createElement('div');
-d.className='lyric-line';d.id='l-'+i;
-d.innerText=l.text;lyricsWrap.appendChild(d);
-});
+                const tx = pos.x * baseSize * globalPulse;
+                const ty = pos.y * baseSize * globalPulse;
 
-/* =========================================================
-   交互 & 音频
-========================================================= */
-addEventListener('mousemove',e=>{
-targetX=e.clientX/ww-.5;
-targetY=e.clientY/wh-.5;
-});
+                // 3) compute offset using precomputed法线（这是关键：均匀截面）
+                // 基础截面随心跳轻微膨胀
+                const offsetMag = this.baseOffsetMag * (1 + heartbeat * 1.6);
+                // 增加少量外逸（被“泵出”）和随机抖动
+                const escape = (heartbeat * 12) * (Math.random() * 0.6);
+                const dx = pos.nx * (this.offsetSign * offsetMag + escape) + this.jitterX;
+                const dy = pos.ny * (this.offsetSign * offsetMag + escape) + this.jitterY;
 
-overlay.onclick=()=>{
-audioCtx=new AudioContext();
-analyser=audioCtx.createAnalyser();
-analyser.fftSize=128;
-dataArray=new Uint8Array(analyser.frequencyBinCount);
-audioCtx.createMediaElementSource(audio).connect(analyser);
-analyser.connect(audioCtx.destination);
-audio.play();
-overlay.style.opacity=0;
-setTimeout(()=>overlay.remove(),1200);
-};
+                const destX = cx + tx + dx + mouseX * 12;
+                const destY = cy + ty + dy + mouseY * 12;
 
-/* =========================================================
-   主循环
-========================================================= */
-function animate(){
-mouseX+=(targetX-mouseX)*.05;
-mouseY+=(targetY-mouseY)*.05;
+                // 4) 平滑插值到目标（softness 保持 +/-）
+                this.x += (destX - this.x) * 0.14;
+                this.y += (destY - this.y) * 0.14;
 
-ctx.globalCompositeOperation="source-over";
-ctx.fillStyle="#050505";
-ctx.fillRect(0,0,ww,wh);
+                // 5) alpha 随音量增强，size 也可微幅改变
+                this.alpha = this.baseAlpha * (1 + heartbeat * 1.4);
+                this.drawSize = this.size * (1 + heartbeat * 0.35);
+            }
+            draw() {
+                ctx.globalCompositeOperation = "lighter";
+                // 色相随 index 略微变化，给出温和的色散效果
+                const hue = this.hueBase + (this.index / PRECISION) * 8;
+                ctx.fillStyle = `hsla(${hue}, 80%, ${60 + heartbeat*12}%, ${Math.max(0.02, Math.min(this.alpha, 0.95))})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.drawSize, 0, Math.PI * 2);
+                ctx.fill();
 
-if(analyser){
-analyser.getByteFrequencyData(dataArray);
-let s=0;for(let i=0;i<12;i++)s+=dataArray[i];
-audioEnergy=s/12/255;
-heartbeat=Math.pow(audioEnergy,1.7);
-}
+                // 微小内发光（提升“柔和高亮”感觉）
+                if (this.drawSize > 1.4) {
+                    ctx.fillStyle = `rgba(255,255,255,${0.02 + heartbeat * 0.04})`;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.drawSize * 0.35, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
 
-if(morphActive){
-morphParticles.forEach(p=>{
-const idx=Math.floor(Math.random()*PRECISION);
-const h=heartPath[idx];
-const tx=cx+h.x*baseSize;
-const ty=cy+h.y*baseSize;
-p.x+=(tx-p.x)*.06;
-p.y+=(ty-p.y)*.06;
-ctx.fillStyle="rgba(255,120,160,.8)";
-ctx.beginPath();ctx.arc(p.x,p.y,1.2,0,Math.PI*2);ctx.fill();
-});
-morphParticles.length*=.985;
-if(morphParticles.length<40)morphActive=false;
-}else{
-particles.forEach(p=>{p.update();p.draw();});
-}
+        const timeline = [{t:0,text:"Lubricate & East Sun"},{t:12,text:"Lubricate stands in the soft glow"},{t:20,text:"Frank calls, 'Don't move too slow.'"},{t:25,text:"East Sun smiles through broken tunes"},{t:31,text:"Promises we made too soon"},{t:37,text:"Frank and East Sun, staying young"},{t:43,text:"Every truth still on our tongue"},{t:51,text:"Oh, Lubricate and East Sun run"},{t:58,text:"Through the dark into the sun"},{t:63,text:"Frank and East Sun, night is done"},{t:67,text:"I choose you — East Sun"},{t:83,text:"Lubricate fears he’s hard to keep"},{t:92,text:"East Sun says, 'Love’s not that deep.'"},{t:99,text:"Frank and East Sun, faded signs"},{t:105,text:"Your hand fits right inside mine"},{t:110,text:"Oil and light, Frank never planned"},{t:115,text:"East Sun smiles, they understand"},{t:122,text:"If the world comes all undone"},{t:127,text:"Stay with me till morning comes"},{t:133,text:"Oh, Lubricate and East Sun run"},{t:141,text:"Frank and East Sun toward the sun"},{t:146,text:"When the truth is finally done"},{t:152,text:"I choose you — East Sun"},{t:158,text:"Frank and East Sun, one love begun"}];
 
-/* 歌词 */
-const idx=timeline.findIndex((l,i)=>audio.currentTime>=l.t&&(!timeline[i+1]||audio.currentTime<timeline[i+1].t));
-if(idx!==-1){
-document.querySelectorAll('.lyric-line').forEach(l=>l.classList.remove('active'));
-document.getElementById('l-'+idx)?.classList.add('active');
-}
+        timeline.forEach((item, i) => {
+            const el = document.createElement('div'); el.className = 'lyric-line'; el.id = `l-${i}`;
+            el.innerText = item.text; lyricsWrap.appendChild(el);
+        });
 
-/* 进度 */
-if(audio.duration)pBar.style.width=`${audio.currentTime/audio.duration*100}%`;
+        window.addEventListener('mousemove', e => { targetX = (e.clientX/ww)-0.5; targetY = (e.clientY/wh)-0.5; });
+        window.addEventListener('deviceorientation', e => { if(e.gamma) { targetX = e.gamma/45; targetY = (e.beta-45)/45; }});
 
-requestAnimationFrame(animate);
-}
-animate();
-</script>
+        // Audio context & analyser init (lazy)
+        const startPlay = () => {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                const src = audioCtx.createMediaElementSource(audio);
+                src.connect(analyser); analyser.connect(audioCtx.destination);
+                analyser.fftSize = 128; // 稍高分辨率
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+            }
+            // resume context if suspended (Chrome policy)
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            audio.play(); overlay.style.opacity = 0; setTimeout(() => overlay.remove(), 800);
+        };
+        overlay.onclick = startPlay; overlay.ontouchstart = startPlay;
+        document.getElementById('p-touch').onclick = e => { if (audio.duration) audio.currentTime = (e.clientX / ww) * audio.duration; };
+
+        // 初始化流程
+        generateHeartPath();
+        resize();
+        for(let i=0; i<2500; i++) particles.push(new Particle());
+
+        // 画心光晕（在粒子之前绘制）
+        function drawHeartGlow() {
+            const gRadius = baseSize * glowBaseFactor * (1 + heartbeat * 1.2);
+            const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, gRadius);
+            // 中心更亮，随 heartbeat 强化
+            g.addColorStop(0, `rgba(255,120,160,${0.16 + heartbeat * 0.42})`);
+            g.addColorStop(0.25, `rgba(255,80,120,${0.08 + heartbeat * 0.18})`);
+            g.addColorStop(0.6, `rgba(255,20,80,0.03)`);
+            g.addColorStop(1, 'rgba(255,0,80,0)');
+            ctx.globalCompositeOperation = "screen";
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(cx, cy, gRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalCompositeOperation = "source-over";
+        }
+
+        function animate() {
+            // smooth mouse influence
+            mouseX += (targetX - mouseX) * 0.05; mouseY += (targetY - mouseY) * 0.05;
+
+            // 背景清屏
+            ctx.globalCompositeOperation = "source-over";
+            ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, ww, wh);
+            
+            // 音频能量提取（低频主导）
+            if (analyser && dataArray) {
+                analyser.getByteFrequencyData(dataArray);
+                let sum = 0; const bins = Math.min(12, dataArray.length);
+                for(let i=0; i<bins; i++) sum += dataArray[i];
+                audioEnergy = (sum / bins) / 255; // 0..1
+                // 非线性变换增强瞬态（这会被 heartbeat 使用）
+                heartbeat = Math.pow(audioEnergy, 1.7);
+            } else {
+                audioEnergy = 0;
+                heartbeat = 0;
+            }
+
+            // 星尘背景
+            stars.forEach(s => s.draw());
+
+            // 心脏主体光晕（在粒子前绘制以体现“光源”）
+            drawHeartGlow();
+
+            // 粒子更新与绘制（前面 update 的逻辑保证截面均匀）
+            particles.forEach(p => { p.update(); p.draw(); });
+
+            // 进度条保护（避免 NaN）
+            const widthPercent = (audio.duration && audio.duration > 0) ? ((audio.currentTime / audio.duration) * 100) : 0;
+            pBar.style.width = `${Math.max(0, Math.min(100, widthPercent))}%`;
+
+            // 歌词高亮
+            const idx = timeline.findIndex((l, i) => audio.currentTime >= l.t && (!timeline[i+1] || audio.currentTime < timeline[i+1].t));
+            if (idx !== -1) {
+                const cur = document.getElementById(`l-${idx}`);
+                if (cur && !cur.classList.contains('active')) {
+                    document.querySelectorAll('.lyric-line').forEach(l => l.classList.remove('active'));
+                    cur.classList.add('active');
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
 </body>
 </html>
