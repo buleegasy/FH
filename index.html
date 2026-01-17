@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lubricate & East Sun - Interactive Beta</title>
+    <style>
+        :root { --primary: #ff1f5a; --secondary: #ffce00; --bg: #000000; }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background-color: var(--bg);
+            font-family: -apple-system, sans-serif;
+            -webkit-touch-callout: none; -webkit-user-select: none;
+        }
+        canvas { position: absolute; top: 0; left: 0; z-index: 1; touch-action: none; }
+        
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #1a1a1a 0%, #000 100%); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: opacity 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #overlay h1 { color: white; letter-spacing: 10px; font-weight: 200; font-size: 2rem; }
+        #overlay p { color: var(--primary); font-size: 0.8rem; margin-top: 20px; animation: blink 2s infinite; }
+
+        .ui-layer { position: relative; z-index: 10; width: 100%; height: 100%; pointer-events: none; }
+        #lyrics-container {
+            position: absolute; bottom: 15%; width: 100%; text-align: center;
+            transition: transform 0.8s cubic-bezier(0.2, 1, 0.2, 1);
+        }
+        .lyric-line {
+            height: 45px; line-height: 45px; font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+            color: rgba(255,255,255,0.1); transition: all 0.7s;
+            filter: blur(2px); transform: translateY(20px);
+        }
+        .lyric-line.active {
+            color: #fff; filter: blur(0); transform: translateY(0) scale(1.1);
+            text-shadow: 0 0 20px var(--primary);
+        }
+
+        .progress-wrapper {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 4px;
+            background: rgba(255,255,255,0.05); z-index: 20; pointer-events: auto;
+        }
+        #progress-bar {
+            width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary));
+            box-shadow: 0 0 20px var(--primary);
+        }
+        @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>BETA v2.0</h1>
+        <p>INTERACTIVE TERMINAL: TOUCH TO AWAKEN</p>
+    </div>
+
+    <canvas id="mainCanvas"></canvas>
+
+    <div class="ui-layer">
+        <div id="lyrics-container"></div>
+    </div>
+
+    <div class="progress-wrapper" id="p-root"><div id="progress-bar"></div></div>
+
+    <audio id="music" src="Love Story.mp3" preload="auto"></audio>
+
+    <script>
+        const audio = document.getElementById('music');
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const lyricsWrap = document.getElementById('lyrics-container');
+        const bar = document.getElementById('progress-bar');
+        
+        let particles = [];
+        let mouse = { x: -1000, y: -1000, active: false };
+        let shockwave = { x: 0, y: 0, r: 0, active: false };
+        let mood = "normal";
+        let dpr = window.devicePixelRatio || 1;
+        let baseSize;
+
+        const timeline = [
+            { t: 0, text: "Lubricate & East Sun", m: "normal" },
+            { t: 12, text: "Lubricate stands in the soft glow,", m: "oil" },
+            { t: 20, text: "Frank calls, 'Don't move too slow.'", m: "normal" },
+            { t: 25, text: "East Sun smiles through broken tunes,", m: "sun" },
+            { t: 31, text: "Promises we made too soon.", m: "normal" },
+            { t: 37, text: "Frank and East Sun, staying young,", m: "sun" },
+            { t: 43, text: "Every truth still on our tongue.", m: "normal" },
+            { t: 51, text: "Oh, Lubricate and East Sun run,", m: "sun" },
+            { t: 58, text: "Through the dark into the sun.", m: "sun" },
+            { t: 63, text: "Frank and East Sun, night is done,", m: "sun" },
+            { t: 67, text: "I choose you — East Sun.", m: "sun" },
+            { t: 83, text: "Lubricate fears he’s hard to keep,", m: "oil" },
+            { t: 92, text: "East Sun says, 'Love’s not that deep.'", m: "sun" },
+            { t: 99, text: "Frank and East Sun, faded signs,", m: "normal" },
+            { t: 105, text: "Your hand fits right inside mine.", m: "normal" },
+            { t: 110, text: "Oil and light, Frank never planned,", m: "oil" },
+            { t: 115, text: "East Sun smiles, they understand.", m: "sun" },
+            { t: 122, text: "If the world comes all undone,", m: "normal" },
+            { t: 127, text: "Stay with me till morning comes.", m: "sun" },
+            { t: 133, text: "Oh, Lubricate and East Sun run,", m: "sun" },
+            { t: 141, text: "Frank and East Sun toward the sun.", m: "sun" },
+            { t: 146, text: "When the truth is finally done,", m: "normal" },
+            { t: 152, text: "I choose you — East Sun.", m: "sun" },
+            { t: 158, text: "Frank and East Sun, one love begun.", m: "sun" }
+        ];
+
+        function init() {
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            ctx.scale(dpr, dpr);
+            baseSize = Math.min(window.innerWidth, window.innerHeight) / 55;
+        }
+        window.onresize = init;
+        init();
+
+        class Particle {
+            constructor() {
+                this.reset();
+                this.x = Math.random() * window.innerWidth;
+                this.y = Math.random() * window.innerHeight;
+            }
+            reset() {
+                this.angle = Math.random() * Math.PI * 2;
+                this.flow = Math.random() * 0.01 + 0.005;
+                this.vx = 0; this.vy = 0;
+                this.size = Math.random() * 1.5 + 0.5;
+                this.hue = Math.random() > 0.5 ? 345 : 45; // 红或金
+            }
+            update() {
+                this.angle += mood === "sun" ? this.flow * 3 : this.flow;
+                const heart = {
+                    x: 16 * Math.pow(Math.sin(this.angle), 3) * baseSize,
+                    y: -(13 * Math.cos(this.angle) - 5 * Math.cos(2*this.angle) - 2 * Math.cos(3*this.angle) - Math.cos(4*this.angle)) * baseSize
+                };
+
+                const tx = heart.x + window.innerWidth/2;
+                const ty = heart.y + window.innerHeight/2 - 50;
+
+                // 1. 基础引力
+                this.vx += (tx - this.x) * 0.05;
+                this.vy += (ty - this.y) * 0.05;
+
+                // 2. 指尖引力交互
+                if(mouse.active) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if(dist < 150) {
+                        this.vx += dx * 0.02;
+                        this.vy += dy * 0.02;
+                    }
+                }
+
+                // 3. 点击冲击波
+                if(shockwave.active) {
+                    const dx = this.x - shockwave.x;
+                    const dy = this.y - shockwave.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if(dist < shockwave.r && dist > shockwave.r - 20) {
+                        this.vx += dx * 0.5;
+                        this.vy += dy * 0.5;
+                    }
+                }
+
+                this.vx *= mood === "oil" ? 0.85 : 0.92;
+                this.vy *= mood === "oil" ? 0.85 : 0.92;
+                this.x += this.vx; this.y += this.vy;
+            }
+            draw() {
+                ctx.fillStyle = `hsla(${this.hue}, 100%, 60%, ${mood === "sun" ? 0.9 : 0.7})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * (mood === "sun" ? 2 : 1), 0, 7);
+                ctx.fill();
+            }
+        }
+
+        for(let i=0; i<2800; i++) particles.push(new Particle());
+        timeline.forEach((item, i) => {
+            const el = document.createElement('div');
+            el.className = 'lyric-line'; el.id = `l-${i}`; el.innerText = item.text;
+            lyricsWrap.appendChild(el);
+        });
+
+        // 交互监听
+        const handleStart = (e) => {
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const y = e.touches ? e.touches[0].clientY : e.clientY;
+            if(overlay.parentNode) {
+                overlay.style.opacity = 0; setTimeout(() => overlay.remove(), 1000);
+                audio.play();
+            } else {
+                shockwave = { x, y, r: 0, active: true };
+            }
+        };
+        window.addEventListener('mousedown', handleStart);
+        window.addEventListener('touchstart', handleStart);
+        window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; });
+        window.addEventListener('touchmove', (e) => { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; mouse.active = true; });
+
+        function animate() {
+            ctx.fillStyle = 'rgba(0,0,0,0.18)';
+            ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+            if(shockwave.active) {
+                shockwave.r += 15;
+                if(shockwave.r > window.innerWidth * 1.5) shockwave.active = false;
+            }
+
+            const cur = audio.currentTime;
+            bar.style.width = `${(cur / audio.duration) * 100}%`;
+            const idx = timeline.findIndex((l, i) => cur >= l.t && (!timeline[i+1] || cur < timeline[i+1].t));
+            
+            if(idx !== -1) {
+                document.querySelectorAll('.lyric-line').forEach(l => l.classList.remove('active'));
+                document.getElementById(`l-${idx}`).classList.add('active');
+                lyricsWrap.style.transform = `translateY(-${idx * 45}px)`;
+                mood = timeline[idx].m;
+            }
+
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>
