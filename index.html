@@ -1,34 +1,178 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Lubricate & East Sun</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        :root { --p: #ff2d55; --s: #ffcc00; --bg: #050505; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: 'Cinzel', serif; }
-        canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-        #overlay { position: fixed; inset: 0; background: #000; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease; cursor: pointer; }
-        #overlay h1 { color: #fff; letter-spacing: 8px; font-weight: 400; font-size: 1.4rem; margin-bottom: 20px; text-align: center; line-height: 1.6; padding-left: 8px; }
-        #overlay p { color: var(--p); font-size: 0.7rem; letter-spacing: 3px; animation: pulse 1.5s infinite; text-align: center; padding-left: 3px; }
-        .ui-layer { position: absolute; bottom: 0; left: 0; width: 100%; height: 35%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: center; padding-top: 20px; }
-        #lyrics-container { width: 85%; text-align: center; position: relative; height: 60px; }
-        .lyric-line { position: absolute; width: 100%; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); font-size: clamp(1rem, 4.5vw, 1.4rem); line-height: 1.4; color: rgba(255,255,255,0.05); transition: all 0.6s ease; filter: blur(6px); opacity: 0; white-space: nowrap; }
-        .lyric-line.active { color: #fff; transform: translate(-50%, -50%) scale(1.05); filter: blur(0); opacity: 1; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
-        .progress-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 40px; z-index: 100; cursor: pointer; display: flex; align-items: flex-end; }
-        .progress-bg { width: 100%; height: 2px; background: rgba(255,255,255,0.1); position: relative; }
-        .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, var(--p), var(--s)); box-shadow: 0 0 10px var(--p); position: relative; }
-        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        :root {
+            --p: #ff2d55;
+            --s: #ffcc00;
+            --bg: #050505;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            font-family: 'Cinzel', serif;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.8s ease;
+            cursor: pointer;
+        }
+
+        #overlay h1 {
+            color: #fff;
+            letter-spacing: 8px;
+            font-weight: 400;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            text-align: center;
+            line-height: 1.6;
+            padding-left: 8px;
+        }
+
+        #overlay p {
+            color: var(--p);
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            animation: pulse 1.5s infinite;
+            text-align: center;
+            padding-left: 3px;
+        }
+
+        .ui-layer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+        }
+
+        #lyrics-container {
+            width: 85%;
+            text-align: center;
+            position: relative;
+            height: 60px;
+        }
+
+        .lyric-line {
+            position: absolute;
+            width: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.95);
+            font-size: clamp(1rem, 4.5vw, 1.4rem);
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.05);
+            transition: all 0.6s ease;
+            filter: blur(6px);
+            opacity: 0;
+            white-space: nowrap;
+        }
+
+        .lyric-line.active {
+            color: #fff;
+            transform: translate(-50%, -50%) scale(1.05);
+            filter: blur(0);
+            opacity: 1;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        .progress-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            z-index: 100;
+            cursor: pointer;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        .progress-bg {
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--p), var(--s));
+            box-shadow: 0 0 10px var(--p);
+            position: relative;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 0.4;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
     </style>
 </head>
+
 <body>
 
-    <div id="overlay"><h1>Love<br>Story of<br>F&H</h1><p>TAP TO START</p></div>
+    <div id="overlay">
+        <h1>Love Story<br><span style="font-size: 0.65em; letter-spacing: 4px;">of</span><br>F&H</h1>
+        <p>TAP TO START</p>
+    </div>
     <canvas id="mainCanvas"></canvas>
-    <div class="ui-layer"><div id="lyrics-container"></div></div>
-    <div class="progress-container" id="p-touch"><div class="progress-bg"><div class="progress-bar" id="p-bar"></div></div></div>
+    <div class="ui-layer">
+        <div id="lyrics-container"></div>
+    </div>
+    <div class="progress-container" id="p-touch">
+        <div class="progress-bg">
+            <div class="progress-bar" id="p-bar"></div>
+        </div>
+    </div>
     <audio id="music" src="Love Story.mp3" preload="auto"></audio>
 
     <script>
@@ -38,11 +182,11 @@
         const lyricsWrap = document.getElementById('lyrics-container');
         const pBar = document.getElementById('p-bar');
         const overlay = document.getElementById('overlay');
-        
+
         let ww, wh, cx, cy, baseSize;
         let particles = [], stars = [];
         let heartPath = []; // 预计算路径与法线
-        let dpr = Math.min(window.devicePixelRatio || 1, 2); 
+        let dpr = Math.min(window.devicePixelRatio || 1, 2);
         let audioCtx, analyser, dataArray, audioEnergy = 0;
         let targetX = 0, targetY = 0, mouseX = 0, mouseY = 0;
 
@@ -59,7 +203,7 @@
             for (let i = 0; i < precision; i++) {
                 const t = (i / precision) * Math.PI * 2;
                 const x = 16 * Math.pow(Math.sin(t), 3);
-                const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
                 heartPath.push({ x, y, nx: 0, ny: 0 });
             }
 
@@ -85,8 +229,8 @@
             canvas.width = Math.round(ww * dpr);
             canvas.height = Math.round(wh * dpr);
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 以 CSS 像素为单位绘制
-            cx = ww / 2; cy = wh * 0.42; 
-            baseSize = Math.min(ww, wh) / 50; 
+            cx = ww / 2; cy = wh * 0.42;
+            baseSize = Math.min(ww, wh) / 50;
             initStars();
         }
         window.addEventListener('resize', resize);
@@ -105,7 +249,7 @@
         }
 
         function initStars() {
-            stars = []; for(let i=0; i<100; i++) stars.push(new Star());
+            stars = []; for (let i = 0; i < 100; i++) stars.push(new Star());
         }
 
         class Particle {
@@ -176,7 +320,7 @@
                 ctx.globalCompositeOperation = "lighter";
                 // 色相随 index 略微变化，给出温和的色散效果
                 const hue = this.hueBase + (this.index / PRECISION) * 8;
-                ctx.fillStyle = `hsla(${hue}, 80%, ${60 + heartbeat*12}%, ${Math.max(0.02, Math.min(this.alpha, 0.95))})`;
+                ctx.fillStyle = `hsla(${hue}, 80%, ${60 + heartbeat * 12}%, ${Math.max(0.02, Math.min(this.alpha, 0.95))})`;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.drawSize, 0, Math.PI * 2);
                 ctx.fill();
@@ -191,15 +335,15 @@
             }
         }
 
-        const timeline = [{t:0,text:"Lubricate & East Sun"},{t:12,text:"Lubricate stands in the soft glow"},{t:20,text:"Frank calls, 'Don't move too slow.'"},{t:25,text:"East Sun smiles through broken tunes"},{t:31,text:"Promises we made too soon"},{t:37,text:"Frank and East Sun, staying young"},{t:43,text:"Every truth still on our tongue"},{t:51,text:"Oh, Lubricate and East Sun run"},{t:58,text:"Through the dark into the sun"},{t:63,text:"Frank and East Sun, night is done"},{t:67,text:"I choose you — East Sun"},{t:83,text:"Lubricate fears he’s hard to keep"},{t:92,text:"East Sun says, 'Love’s not that deep.'"},{t:99,text:"Frank and East Sun, faded signs"},{t:105,text:"Your hand fits right inside mine"},{t:110,text:"Oil and light, Frank never planned"},{t:115,text:"East Sun smiles, they understand"},{t:122,text:"If the world comes all undone"},{t:127,text:"Stay with me till morning comes"},{t:133,text:"Oh, Lubricate and East Sun run"},{t:141,text:"Frank and East Sun toward the sun"},{t:146,text:"When the truth is finally done"},{t:152,text:"I choose you — East Sun"},{t:158,text:"Frank and East Sun, one love begun"}];
+        const timeline = [{ t: 0, text: "Lubricate & East Sun" }, { t: 12, text: "Lubricate stands in the soft glow" }, { t: 20, text: "Frank calls, 'Don't move too slow.'" }, { t: 25, text: "East Sun smiles through broken tunes" }, { t: 31, text: "Promises we made too soon" }, { t: 37, text: "Frank and East Sun, staying young" }, { t: 43, text: "Every truth still on our tongue" }, { t: 51, text: "Oh, Lubricate and East Sun run" }, { t: 58, text: "Through the dark into the sun" }, { t: 63, text: "Frank and East Sun, night is done" }, { t: 67, text: "I choose you — East Sun" }, { t: 83, text: "Lubricate fears he’s hard to keep" }, { t: 92, text: "East Sun says, 'Love’s not that deep.'" }, { t: 99, text: "Frank and East Sun, faded signs" }, { t: 105, text: "Your hand fits right inside mine" }, { t: 110, text: "Oil and light, Frank never planned" }, { t: 115, text: "East Sun smiles, they understand" }, { t: 122, text: "If the world comes all undone" }, { t: 127, text: "Stay with me till morning comes" }, { t: 133, text: "Oh, Lubricate and East Sun run" }, { t: 141, text: "Frank and East Sun toward the sun" }, { t: 146, text: "When the truth is finally done" }, { t: 152, text: "I choose you — East Sun" }, { t: 158, text: "Frank and East Sun, one love begun" }];
 
         timeline.forEach((item, i) => {
             const el = document.createElement('div'); el.className = 'lyric-line'; el.id = `l-${i}`;
             el.innerText = item.text; lyricsWrap.appendChild(el);
         });
 
-        window.addEventListener('mousemove', e => { targetX = (e.clientX/ww)-0.5; targetY = (e.clientY/wh)-0.5; });
-        window.addEventListener('deviceorientation', e => { if(e.gamma) { targetX = e.gamma/45; targetY = (e.beta-45)/45; }});
+        window.addEventListener('mousemove', e => { targetX = (e.clientX / ww) - 0.5; targetY = (e.clientY / wh) - 0.5; });
+        window.addEventListener('deviceorientation', e => { if (e.gamma) { targetX = e.gamma / 45; targetY = (e.beta - 45) / 45; } });
 
         // Audio context & analyser init (lazy)
         const startPlay = () => {
@@ -221,7 +365,7 @@
         // 初始化流程
         generateHeartPath();
         resize();
-        for(let i=0; i<2500; i++) particles.push(new Particle());
+        for (let i = 0; i < 2500; i++) particles.push(new Particle());
 
         // 画心光晕（在粒子之前绘制）
         function drawHeartGlow() {
@@ -247,12 +391,12 @@
             // 背景清屏
             ctx.globalCompositeOperation = "source-over";
             ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, ww, wh);
-            
+
             // 音频能量提取（低频主导）
             if (analyser && dataArray) {
                 analyser.getByteFrequencyData(dataArray);
                 let sum = 0; const bins = Math.min(12, dataArray.length);
-                for(let i=0; i<bins; i++) sum += dataArray[i];
+                for (let i = 0; i < bins; i++) sum += dataArray[i];
                 audioEnergy = (sum / bins) / 255; // 0..1
                 // 非线性变换增强瞬态（这会被 heartbeat 使用）
                 heartbeat = Math.pow(audioEnergy, 1.7);
@@ -275,7 +419,7 @@
             pBar.style.width = `${Math.max(0, Math.min(100, widthPercent))}%`;
 
             // 歌词高亮
-            const idx = timeline.findIndex((l, i) => audio.currentTime >= l.t && (!timeline[i+1] || audio.currentTime < timeline[i+1].t));
+            const idx = timeline.findIndex((l, i) => audio.currentTime >= l.t && (!timeline[i + 1] || audio.currentTime < timeline[i + 1].t));
             if (idx !== -1) {
                 const cur = document.getElementById(`l-${idx}`);
                 if (cur && !cur.classList.contains('active')) {
@@ -289,4 +433,5 @@
         animate();
     </script>
 </body>
+
 </html>
