@@ -11,8 +11,8 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: 'Cinzel', serif; }
         canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
         #overlay { position: fixed; inset: 0; background: #000; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease; cursor: pointer; }
-        #overlay h1 { color: #fff; letter-spacing: 8px; font-weight: 400; font-size: 1.4rem; margin-bottom: 20px; }
-        #overlay p { color: var(--p); font-size: 0.7rem; letter-spacing: 3px; animation: pulse 1.5s infinite; }
+        #overlay h1 { color: #fff; letter-spacing: 8px; font-weight: 400; font-size: 1.4rem; margin-bottom: 20px; text-align: center; line-height: 1.6; padding-left: 8px; }
+        #overlay p { color: var(--p); font-size: 0.7rem; letter-spacing: 3px; animation: pulse 1.5s infinite; text-align: center; padding-left: 3px; }
         .ui-layer { position: absolute; bottom: 0; left: 0; width: 100%; height: 35%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: center; padding-top: 20px; }
         #lyrics-container { width: 85%; text-align: center; position: relative; height: 60px; }
         .lyric-line { position: absolute; width: 100%; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); font-size: clamp(1rem, 4.5vw, 1.4rem); line-height: 1.4; color: rgba(255,255,255,0.05); transition: all 0.6s ease; filter: blur(6px); opacity: 0; white-space: nowrap; }
@@ -25,7 +25,7 @@
 </head>
 <body>
 
-    <div id="overlay"><h1>IMMERSIVE MODE</h1><p>TAP TO START</p></div>
+    <div id="overlay"><h1>Love<br>Story of<br>F&H</h1><p>TAP TO START</p></div>
     <canvas id="mainCanvas"></canvas>
     <div class="ui-layer"><div id="lyrics-container"></div></div>
     <div class="progress-container" id="p-touch"><div class="progress-bg"><div class="progress-bar" id="p-bar"></div></div></div>
